@@ -30,7 +30,7 @@ index baa0d233af..0203716a10 100644
  
      if opt_mem_type == "HMC_2500_1x32":
          HMChost = HMC.config_hmc_host_ctrl(options, system)
-@@ -242,7 +247,8 @@ def config_mem(options, system):
+@@ -213,7 +218,8 @@ def config_mem(options, system):
              if opt_mem_type and (not opt_nvm_type or range_iter % 2 != 0):
                  # Create the DRAM interface
                  dram_intf = create_mem_intf(
