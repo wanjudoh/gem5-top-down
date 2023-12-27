@@ -1,0 +1,119 @@
+diff --git a/src/cpu/o3/cpu.hh b/src/cpu/o3/cpu.hh
+index 1d100ab330..c6c40999b7 100644
+--- a/src/cpu/o3/cpu.hh
++++ b/src/cpu/o3/cpu.hh
+@@ -397,6 +397,8 @@ class CPU : public BaseCPU
+      */
+     bool removeInstsThisCycle;
+ 
++    unsigned decodeWidth;
++
+   protected:
+     /** The fetch stage. */
+     Fetch fetch;
+diff --git a/src/cpu/o3/decode.cc b/src/cpu/o3/decode.cc
+index ac728a2f2c..47269a8f46 100644
+--- a/src/cpu/o3/decode.cc
++++ b/src/cpu/o3/decode.cc
+@@ -76,6 +76,8 @@ Decode::Decode(CPU *_cpu, const BaseO3CPUParams &params)
+              "\tincrease MaxWidth in src/cpu/o3/limits.hh\n",
+              decodeWidth, static_cast<int>(MaxWidth));
+ 
++    cpu->decodeWidth = decodeWidth;
++
+     // @todo: Make into a parameter
+     skidBufferMax = (fetchToDecodeDelay + 1) *  params.decodeWidth;
+     for (int tid = 0; tid < MaxThreads; tid++) {
+diff --git a/src/cpu/o3/rename.cc b/src/cpu/o3/rename.cc
+index f8c305eb1c..7f454b12dd 100644
+--- a/src/cpu/o3/rename.cc
++++ b/src/cpu/o3/rename.cc
+@@ -145,7 +145,10 @@ Rename::RenameStats::RenameStats(statistics::Group *parent)
+       ADD_STAT(tempSerializing, statistics::units::Count::get(),
+                "count of temporary serializing insts renamed"),
+       ADD_STAT(skidInsts, statistics::units::Count::get(),
+-               "count of insts added to the skid buffer")
++               "count of insts added to the skid buffer"),
++      ADD_STAT(uOpsNotDelivered, statistics::units::Count::get(),
++               "Number of uOps not delivered to backend when backend is "
++               "not stalled")
+ {
+     squashCycles.prereq(squashCycles);
+     idleCycles.prereq(idleCycles);
+@@ -156,6 +159,7 @@ Rename::RenameStats::RenameStats(statistics::Group *parent)
+ 
+     renamedInsts.prereq(renamedInsts);
+     squashedInsts.prereq(squashedInsts);
++    uOpsNotDelivered.prereq(uOpsNotDelivered);
+ 
+     ROBFullEvents.prereq(ROBFullEvents);
+     IQFullEvents.prereq(IQFullEvents);
+@@ -516,13 +520,14 @@ Rename::renameInsts(ThreadID tid)
+ 
+     // Check the decode queue to see if instructions are available.
+     // If there are no available instructions to rename, then do nothing.
+-    if (insts_available == 0) {
+-        DPRINTF(Rename, "[tid:%i] Nothing to do, breaking out early.\n",
+-                tid);
+-        // Should I change status to idle?
+-        ++stats.idleCycles;
+-        return;
+-    } else if (renameStatus[tid] == Unblocking) {
++    // if (insts_available == 0) {
++    //     DPRINTF(Rename, "[tid:%i] Nothing to do, breaking out early.\n",
++    //             tid);
++    //     // Should I change status to idle?
++    //     ++stats.idleCycles;
++    //     return;
++    // } else
++    if (renameStatus[tid] == Unblocking) {
+         ++stats.unblockCycles;
+     } else if (renameStatus[tid] == Running) {
+         ++stats.runCycles;
+@@ -543,6 +548,7 @@ Rename::renameInsts(ThreadID tid)
+ 
+     // Check if there's any space left.
+     if (min_free_entries <= 0) {
++        // backend에 resource가 부족하여 renaming을 하지 못하는 경우
+         DPRINTF(Rename,
+                 "[tid:%i] Blocking due to no free ROB/IQ/ entries.\n"
+                 "ROB has %i free entries.\n"
+@@ -557,6 +563,7 @@ Rename::renameInsts(ThreadID tid)
+ 
+         return;
+     } else if (min_free_entries < insts_available) {
++        // free entry의 수가 처리해야 할 instruction의 수보다 적은 경우
+         DPRINTF(Rename,
+                 "[tid:%i] "
+                 "Will have to block this cycle. "
+@@ -569,6 +576,18 @@ Rename::renameInsts(ThreadID tid)
+         blockThisCycle = true;
+ 
+         incrFullStat(source);
++    } else if (insts_available < cpu->decodeWidth) {
++        // free entry는 충분한데 instruction이 decode width보다 적게 넘어온 경우
++        // => frontend bound!
++        stats.uOpsNotDelivered += cpu->decodeWidth - insts_available;
++
++        if (insts_available == 0) {
++            DPRINTF(Rename, "[tid:%i] Nothing to do, breaking out early.\n",
++                    tid);
++            // Should I change status to idle?
++            ++stats.idleCycles;
++            return;
++        }
+     }
+ 
+     InstQueue &insts_to_rename = renameStatus[tid] == Unblocking ?
+diff --git a/src/cpu/o3/rename.hh b/src/cpu/o3/rename.hh
+index 61ef476501..e5779340f7 100644
+--- a/src/cpu/o3/rename.hh
++++ b/src/cpu/o3/rename.hh
+@@ -533,6 +533,7 @@ class Rename
+         statistics::Scalar tempSerializing;
+         /** Number of instructions inserted into skid buffers. */
+         statistics::Scalar skidInsts;
++        statistics::Scalar uOpsNotDelivered;
+     } stats;
+ };
+ 

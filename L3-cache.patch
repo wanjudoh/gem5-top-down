@@ -1,0 +1,148 @@
+diff --git a/configs/common/CacheConfig.py b/configs/common/CacheConfig.py
+index 7a191570e3..9bbfcf13f0 100644
+--- a/configs/common/CacheConfig.py
++++ b/configs/common/CacheConfig.py
+@@ -90,11 +90,18 @@ def config_cache(options, system):
+             print("O3_ARM_v7a_3 is unavailable. Did you compile the O3 model?")
+             sys.exit(1)
+ 
+-        dcache_class, icache_class, l2_cache_class, walk_cache_class = (
++        (
++            dcache_class,
++            icache_class,
++            l2_cache_class,
++            l3_cache_class,
++            walk_cache_class,
++        ) = (
+             core.O3_ARM_v7a_DCache,
+             core.O3_ARM_v7a_ICache,
+             core.O3_ARM_v7aL2,
+             None,
++            None,
+         )
+     elif options.cpu_type == "HPI":
+         try:
+@@ -110,10 +117,17 @@ def config_cache(options, system):
+             None,
+         )
+     else:
+-        dcache_class, icache_class, l2_cache_class, walk_cache_class = (
++        (
++            dcache_class,
++            icache_class,
++            l2_cache_class,
++            l3_cache_class,
++            walk_cache_class,
++        ) = (
+             L1_DCache,
+             L1_ICache,
+             L2Cache,
++            L3Cache,
+             None,
+         )
+ 
+@@ -130,7 +144,25 @@ def config_cache(options, system):
+     if options.l2cache and options.elastic_trace_en:
+         fatal("When elastic trace is enabled, do not configure L2 caches.")
+ 
+-    if options.l2cache:
++    if options.l2cache and options.l3cache:
++        # Provide a clock for the L2 and the L1-to-L2 bus here as they
++        # are not connected using addTwoLevelCacheHierarchy. Use the
++        # same clock as the CPUs.
++        system.l2 = l2_cache_class(
++            clk_domain=system.cpu_clk_domain, **_get_cache_opts("l2", options)
++        )
++        system.l3 = l3_cache_class(
++            clk_domain=system.cpu_clk_domain, **_get_cache_opts("l3", options)
++        )
++
++        system.tol2bus = L2XBar(clk_domain=system.cpu_clk_domain)
++        system.tol3bus = L3XBar(clk_domain=system.cpu_clk_domain)
++        system.l2.cpu_side = system.tol2bus.mem_side_ports
++        system.l2.mem_side = system.tol3bus.cpu_side_ports
++        system.l3.cpu_side = system.tol3bus.mem_side_ports
++        system.l3.mem_side = system.membus.cpu_side_ports
++
++    elif options.l2cache:
+         # Provide a clock for the L2 and the L1-to-L2 bus here as they
+         # are not connected using addTwoLevelCacheHierarchy. Use the
+         # same clock as the CPUs.
+diff --git a/configs/common/Caches.py b/configs/common/Caches.py
+index e25d16ca1e..335fc8cd77 100644
+--- a/configs/common/Caches.py
++++ b/configs/common/Caches.py
+@@ -78,6 +78,16 @@ class L2Cache(Cache):
+     write_buffers = 8
+ 
+ 
++class L3Cache(Cache):
++    assoc = 16
++    tag_latency = 32
++    data_latency = 32
++    response_latency = 32
++    mshrs = 32
++    tgts_per_mshr = 24
++    write_buffers = 16
++    size = "4MB"
++
+ class IOCache(Cache):
+     assoc = 8
+     tag_latency = 50
+diff --git a/configs/common/Options.py b/configs/common/Options.py
+index 8344d9fd44..3de6a2a839 100644
+--- a/configs/common/Options.py
++++ b/configs/common/Options.py
+@@ -178,6 +178,7 @@ def addNoISAOptions(parser):
+     )
+     parser.add_argument("--caches", action="store_true")
+     parser.add_argument("--l2cache", action="store_true")
++    parser.add_argument("--l3cache", action="store_true")
+     parser.add_argument("--num-dirs", type=int, default=1)
+     parser.add_argument("--num-l2caches", type=int, default=1)
+     parser.add_argument("--num-l3caches", type=int, default=1)
+diff --git a/src/cpu/BaseCPU.py b/src/cpu/BaseCPU.py
+index 556af52612..d2c505eaa5 100644
+--- a/src/cpu/BaseCPU.py
++++ b/src/cpu/BaseCPU.py
+@@ -47,7 +47,7 @@ from m5.proxy import *
+ from m5.util.fdthelper import *
+ 
+ from m5.objects.ClockedObject import ClockedObject
+-from m5.objects.XBar import L2XBar
++from m5.objects.XBar import L2XBar, L3XBar
+ from m5.objects.InstTracer import InstTracer
+ from m5.objects.CPUTracers import ExeTracer
+ from m5.objects.SubSystem import SubSystem
+@@ -296,6 +296,14 @@ class BaseCPU(ClockedObject):
+         for child_node in self.recurseDeviceTree(state):
+             yield child_node
+ 
++    def addThreeLevelCacheHierarchy(self, ic, dc, l2c, iwc=None, dwc=None):
++        self.addPrivateSplitL2Caches(ic, dc, iwc, dwc)
++        self.toL3Bus = L3XBar()
++        self.connectCachedPorts(self.toL3Bus)
++        self.l3cache = l3c
++        self.toL3Bus.master = self.l3cache.cpu_side
++        self._cached_ports = ["l3cache.mem_side"]
++
+     def __init__(self, **kwargs):
+         super().__init__(**kwargs)
+         self.power_state.possible_states = ["ON", "CLK_GATED", "OFF"]
+diff --git a/src/mem/XBar.py b/src/mem/XBar.py
+index d0becc22a8..ea9b4c02f8 100644
+--- a/src/mem/XBar.py
++++ b/src/mem/XBar.py
+@@ -223,3 +223,12 @@ class IOXBar(NoncoherentXBar):
+     frontend_latency = 2
+     forward_latency = 1
+     response_latency = 2
++
++class L3XBar(CoherentXBar):
++    width = 32
++    frontend_latency = 1
++    forward_latency = 0
++    response_latency = 1
++    snoop_response_latency = 1
++    snoop_filter = SnoopFilter(lookup_latency=0)
++    point_of_unification = True
