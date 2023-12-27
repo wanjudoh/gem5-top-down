@@ -1,3 +1,6 @@
 [submodule "gem5"]
 	path = gem5
 	url = https://github.com/gem5/gem5.git
+[submodule "Splash-4"]
+	path = Splash-4
+	url = https://github.com/OdnetninI/Splash-4.git
