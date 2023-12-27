@@ -40,3 +40,19 @@ index baa0d233af..0203716a10 100644
                  )
  
                  # Set the number of ranks based on the command-line
+diff --git a/configs/common/Options.py b/configs/common/Options.py
+index 3de6a2a839..6164d6fff4 100644
+--- a/configs/common/Options.py
++++ b/configs/common/Options.py
+@@ -176,6 +176,11 @@ def addNoISAOptions(parser):
+         type=str,
+         help="use external port for SystemC TLM cosimulation",
+     )
++    parser.add_argument(
++        "--dram-device-size",
++        default="1GB",
++        type=str,
++    )
+     parser.add_argument("--caches", action="store_true")
+     parser.add_argument("--l2cache", action="store_true")
+     parser.add_argument("--l3cache", action="store_true")
