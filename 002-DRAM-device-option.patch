@@ -31,14 +31,14 @@ index baa0d233af..0203716a10 100644
      if opt_mem_type == "HMC_2500_1x32":
          HMChost = HMC.config_hmc_host_ctrl(options, system)
 @@ -242,7 +247,8 @@ def config_mem(options, system):
- 
-             elif opt_nvm_type and (not opt_mem_type or range_iter % 2 == 0):
-                 nvm_intf = create_mem_intf(
--                    n_intf, r, i, intlv_bits, intlv_size, opt_xor_low_bit
-+                    n_intf, r, i, intlv_bits, intlv_size, opt_xor_low_bit,
+             if opt_mem_type and (not opt_nvm_type or range_iter % 2 != 0):
+                 # Create the DRAM interface
+                 dram_intf = create_mem_intf(
+-                    intf, r, i, intlv_bits, intlv_size, opt_xor_low_bit
++                    intf, r, i, intlv_bits, intlv_size, opt_xor_low_bit,
 +                    opt_dram_device_size
                  )
- 
+
                  # Set the number of ranks based on the command-line
 diff --git a/configs/common/Options.py b/configs/common/Options.py
 index 3de6a2a839..6164d6fff4 100644
