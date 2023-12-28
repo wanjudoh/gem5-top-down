@@ -90,59 +90,71 @@ index e25d16ca1e..335fc8cd77 100644
      assoc = 8
      tag_latency = 50
 diff --git a/configs/common/Options.py b/configs/common/Options.py
-index 8344d9fd44..3de6a2a839 100644
+index 8344d9fd44..67e8de734b 100644
 --- a/configs/common/Options.py
 +++ b/configs/common/Options.py
-@@ -178,6 +178,7 @@ def addNoISAOptions(parser):
+@@ -162,6 +162,11 @@ def addNoISAOptions(parser):
+         default=0,
+         help="Memory channels interleave",
      )
++    parser.add_argument(
++        "--dram-device-size",
++        default="1GB",
++        type=str,
++    )
+ 
+     parser.add_argument("--memchecker", action="store_true")
+ 
+@@ -176,8 +181,10 @@ def addNoISAOptions(parser):
+         type=str,
+         help="use external port for SystemC TLM cosimulation",
+     )
++
      parser.add_argument("--caches", action="store_true")
      parser.add_argument("--l2cache", action="store_true")
 +    parser.add_argument("--l3cache", action="store_true")
      parser.add_argument("--num-dirs", type=int, default=1)
      parser.add_argument("--num-l2caches", type=int, default=1)
      parser.add_argument("--num-l3caches", type=int, default=1)
-diff --git a/src/cpu/BaseCPU.py b/src/cpu/BaseCPU.py
-index 556af52612..d2c505eaa5 100644
---- a/src/cpu/BaseCPU.py
-+++ b/src/cpu/BaseCPU.py
-@@ -47,7 +47,7 @@ from m5.proxy import *
- from m5.util.fdthelper import *
+diff --git a/configs/common/MemConfig.py b/configs/common/MemConfig.py
+index baa0d233af..d51f6e359e 100644
+--- a/configs/common/MemConfig.py
++++ b/configs/common/MemConfig.py
+@@ -38,7 +38,8 @@ from common import ObjectList
+ from common import HMC
  
- from m5.objects.ClockedObject import ClockedObject
--from m5.objects.XBar import L2XBar
-+from m5.objects.XBar import L2XBar, L3XBar
- from m5.objects.InstTracer import InstTracer
- from m5.objects.CPUTracers import ExeTracer
- from m5.objects.SubSystem import SubSystem
-@@ -296,6 +296,14 @@ class BaseCPU(ClockedObject):
-         for child_node in self.recurseDeviceTree(state):
-             yield child_node
  
-+    def addThreeLevelCacheHierarchy(self, ic, dc, l2c, iwc=None, dwc=None):
-+        self.addPrivateSplitL2Caches(ic, dc, iwc, dwc)
-+        self.toL3Bus = L3XBar()
-+        self.connectCachedPorts(self.toL3Bus)
-+        self.l3cache = l3c
-+        self.toL3Bus.master = self.l3cache.cpu_side
-+        self._cached_ports = ["l3cache.mem_side"]
+-def create_mem_intf(intf, r, i, intlv_bits, intlv_size, xor_low_bit):
++def create_mem_intf(intf, r, i, intlv_bits, intlv_size, xor_low_bit,
++        opt_dram_device_size):
+     """
+     Helper function for creating a single memoy controller from the given
+     options.  This function is invoked multiple times in config_mem function
+@@ -63,6 +64,9 @@ def create_mem_intf(intf, r, i, intlv_bits, intlv_size, xor_low_bit):
+     # mapping and row-buffer size
+     interface = intf()
+ 
++    if opt_dram_device_size:
++        interface.device_size = opt_dram_device_size
 +
-     def __init__(self, **kwargs):
-         super().__init__(**kwargs)
-         self.power_state.possible_states = ["ON", "CLK_GATED", "OFF"]
-diff --git a/src/mem/XBar.py b/src/mem/XBar.py
-index d0becc22a8..ea9b4c02f8 100644
---- a/src/mem/XBar.py
-+++ b/src/mem/XBar.py
-@@ -223,3 +223,12 @@ class IOXBar(NoncoherentXBar):
-     frontend_latency = 2
-     forward_latency = 1
-     response_latency = 2
-+
-+class L3XBar(CoherentXBar):
-+    width = 32
-+    frontend_latency = 1
-+    forward_latency = 0
-+    response_latency = 1
-+    snoop_response_latency = 1
-+    snoop_filter = SnoopFilter(lookup_latency=0)
-+    point_of_unification = True
+     # Only do this for DRAMs
+     if issubclass(intf, m5.objects.DRAMInterface):
+         # If the channel bits are appearing after the column
+@@ -141,6 +145,7 @@ def config_mem(options, system):
+     opt_dram_powerdown = getattr(options, "enable_dram_powerdown", None)
+     opt_mem_channels_intlv = getattr(options, "mem_channels_intlv", 128)
+     opt_xor_low_bit = getattr(options, "xor_low_bit", 0)
++    opt_dram_device_size = getattr(options, "dram_device_size", None)
+ 
+     if opt_mem_type == "HMC_2500_1x32":
+         HMChost = HMC.config_hmc_host_ctrl(options, system)
+@@ -213,7 +218,8 @@ def config_mem(options, system):
+             if opt_mem_type and (not opt_nvm_type or range_iter % 2 != 0):
+                 # Create the DRAM interface
+                 dram_intf = create_mem_intf(
+-                    intf, r, i, intlv_bits, intlv_size, opt_xor_low_bit
++                    intf, r, i, intlv_bits, intlv_size, opt_xor_low_bit,
++                    opt_dram_device_size
+                 )
+ 
+                 # Set the number of ranks based on the command-line
