@@ -158,3 +158,20 @@ index baa0d233af..d51f6e359e 100644
                  )
  
                  # Set the number of ranks based on the command-line
+diff --git a/src/mem/XBar.py b/src/mem/XBar.py
+index d0becc22a8..ea9b4c02f8 100644
+--- a/src/mem/XBar.py
++++ b/src/mem/XBar.py
+@@ -223,3 +223,12 @@ class IOXBar(NoncoherentXBar):
+     frontend_latency = 2
+     forward_latency = 1
+     response_latency = 2
++
++class L3XBar(CoherentXBar):
++    width = 32
++    frontend_latency = 1
++    forward_latency = 0
++    response_latency = 1
++    snoop_response_latency = 1
++    snoop_filter = SnoopFilter(lookup_latency=0)
++    point_of_unification = True
