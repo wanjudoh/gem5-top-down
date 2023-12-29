@@ -13,7 +13,7 @@ $ cd gem5-top-down
     * 003: Top-down 분석을 위한 patch입니다.
 ```
 $ cd gem5
-$ patch -p1 < ../patches/001-Add-L3$-and-DRAM-device-size-options.patch
+$ patch -p1 < ../patches/001-Add-L3-and-DRAM-device-size-options.patch
 $ patch -p1 < ../patches/002-Add-cpu-options.patch
 $ patch -p1 < ../patches/003-Top-level.patch
 ```
