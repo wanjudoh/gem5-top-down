@@ -61,6 +61,7 @@ $ python3 ./gem5.py -f config_riscv.cfg -o test -b fft
 # multi-program
 $ ./run_gem5_riscv.sh
 ```
+* 시뮬레이션을 실행하고 나면 gem5_script/results 디렉토리 아래에 시뮬레이션 결과 파일들이 저장됩니다.
 
 ## Top-level analysis
 * gem5_script 디렉토리 아래에 top-level 분석을 수행해주는 python 스크립트가 포함되어있습니다.
