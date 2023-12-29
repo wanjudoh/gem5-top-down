@@ -56,8 +56,21 @@ $ make
 $ cd gem5_script
 
 # single program
-$ python3 gem5.py -f config_riscv.cfg -o test -b fft
+$ python3 ./gem5.py -f config_riscv.cfg -o test -b fft
 
 # multi-program
 $ ./run_gem5_riscv.sh
+```
+
+## Top-level analysis
+* gem5_script 디렉토리 아래에 top-level 분석을 수행해주는 python 스크립트가 포함되어있습니다.
+```
+$ cd gem5_script
+$ python3 ./parse_topdown.py <result directory>
+
+# Ex) python3 ./parse_topdown.py ./results/12-28-19-01-riscv/fft
+Retiring: 0.3057830063700331
+Bad speculation: 0.0070259509263605685
+Frontend bound: 0.22879423265227428
+Backend bound: 0.45839681005133204
 ```
