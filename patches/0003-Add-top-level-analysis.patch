@@ -8,7 +8,8 @@ Change-Id: Ib08e82d607cb45037675ca4411522bc6fe1e16e8
  src/cpu/o3/cpu.hh    |  2 ++
  src/cpu/o3/rename.cc | 13 +++++++++++--
  src/cpu/o3/rename.hh |  2 ++
- 3 files changed, 15 insertions(+), 2 deletions(-)
+ src/cpu/o3/decode.cc |  2 ++
+ 4 files changed, 17 insertions(+), 2 deletions(-)
 
 diff --git a/src/cpu/o3/cpu.hh b/src/cpu/o3/cpu.hh
 index 1d100ab330..c6c40999b7 100644
@@ -23,6 +24,19 @@ index 1d100ab330..c6c40999b7 100644
    protected:
      /** The fetch stage. */
      Fetch fetch;
+diff --git a/src/cpu/o3/decode.cc b/src/cpu/o3/decode.cc
+index ac728a2f2c..47269a8f46 100644
+--- a/src/cpu/o3/decode.cc
++++ b/src/cpu/o3/decode.cc
+@@ -76,6 +76,8 @@ Decode::Decode(CPU *_cpu, const BaseO3CPUParams &params)
+              "\tincrease MaxWidth in src/cpu/o3/limits.hh\n",
+              decodeWidth, static_cast<int>(MaxWidth));
+ 
++    cpu->decodeWidth = decodeWidth;
++
+     // @todo: Make into a parameter
+     skidBufferMax = (fetchToDecodeDelay + 1) *  params.decodeWidth;
+     for (int tid = 0; tid < MaxThreads; tid++) {
 diff --git a/src/cpu/o3/rename.cc b/src/cpu/o3/rename.cc
 index f8c305eb1c..bb44d88b39 100644
 --- a/src/cpu/o3/rename.cc
