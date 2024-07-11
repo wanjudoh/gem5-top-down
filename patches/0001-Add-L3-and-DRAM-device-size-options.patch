@@ -1,3 +1,16 @@
+From 6796fef7e56c0f3e7ca37017d5d24b64c1f5849f Mon Sep 17 00:00:00 2001
+From: wanjudoh <wj.doh@scale.snu.ac.kr>
+Date: Thu, 11 Jul 2024 00:59:24 +0000
+Subject: [PATCH 1/5] Add L3 and DRAM device size options
+
+---
+ configs/common/CacheConfig.py | 38 ++++++++++++++++++++++++++++++++---
+ configs/common/Caches.py      | 11 ++++++++++
+ configs/common/MemConfig.py   | 16 +++++++++++++--
+ configs/common/Options.py     |  7 +++++++
+ src/mem/XBar.py               | 10 +++++++++
+ 5 files changed, 77 insertions(+), 5 deletions(-)
+
 diff --git a/configs/common/CacheConfig.py b/configs/common/CacheConfig.py
 index 7a191570e3..9bbfcf13f0 100644
 --- a/configs/common/CacheConfig.py
@@ -69,10 +82,10 @@ index 7a191570e3..9bbfcf13f0 100644
          # are not connected using addTwoLevelCacheHierarchy. Use the
          # same clock as the CPUs.
 diff --git a/configs/common/Caches.py b/configs/common/Caches.py
-index e25d16ca1e..335fc8cd77 100644
+index e25d16ca1e..127d28ded8 100644
 --- a/configs/common/Caches.py
 +++ b/configs/common/Caches.py
-@@ -78,6 +78,16 @@ class L2Cache(Cache):
+@@ -78,6 +78,17 @@ class L2Cache(Cache):
      write_buffers = 8
  
  
@@ -86,11 +99,60 @@ index e25d16ca1e..335fc8cd77 100644
 +    write_buffers = 16
 +    size = "4MB"
 +
++
  class IOCache(Cache):
      assoc = 8
      tag_latency = 50
+diff --git a/configs/common/MemConfig.py b/configs/common/MemConfig.py
+index baa0d233af..c9669a51f4 100644
+--- a/configs/common/MemConfig.py
++++ b/configs/common/MemConfig.py
+@@ -38,7 +38,9 @@ from common import ObjectList
+ from common import HMC
+ 
+ 
+-def create_mem_intf(intf, r, i, intlv_bits, intlv_size, xor_low_bit):
++def create_mem_intf(
++    intf, r, i, intlv_bits, intlv_size, xor_low_bit, opt_dram_device_size
++):
+     """
+     Helper function for creating a single memoy controller from the given
+     options.  This function is invoked multiple times in config_mem function
+@@ -63,6 +65,9 @@ def create_mem_intf(intf, r, i, intlv_bits, intlv_size, xor_low_bit):
+     # mapping and row-buffer size
+     interface = intf()
+ 
++    if opt_dram_device_size:
++        interface.device_size = opt_dram_device_size
++
+     # Only do this for DRAMs
+     if issubclass(intf, m5.objects.DRAMInterface):
+         # If the channel bits are appearing after the column
+@@ -141,6 +146,7 @@ def config_mem(options, system):
+     opt_dram_powerdown = getattr(options, "enable_dram_powerdown", None)
+     opt_mem_channels_intlv = getattr(options, "mem_channels_intlv", 128)
+     opt_xor_low_bit = getattr(options, "xor_low_bit", 0)
++    opt_dram_device_size = getattr(options, "dram_device_size", None)
+ 
+     if opt_mem_type == "HMC_2500_1x32":
+         HMChost = HMC.config_hmc_host_ctrl(options, system)
+@@ -213,7 +219,13 @@ def config_mem(options, system):
+             if opt_mem_type and (not opt_nvm_type or range_iter % 2 != 0):
+                 # Create the DRAM interface
+                 dram_intf = create_mem_intf(
+-                    intf, r, i, intlv_bits, intlv_size, opt_xor_low_bit
++                    intf,
++                    r,
++                    i,
++                    intlv_bits,
++                    intlv_size,
++                    opt_xor_low_bit,
++                    opt_dram_device_size,
+                 )
+ 
+                 # Set the number of ranks based on the command-line
 diff --git a/configs/common/Options.py b/configs/common/Options.py
-index 8344d9fd44..67e8de734b 100644
+index 8344d9fd44..0a978aea24 100644
 --- a/configs/common/Options.py
 +++ b/configs/common/Options.py
 @@ -162,6 +162,11 @@ def addNoISAOptions(parser):
@@ -116,56 +178,15 @@ index 8344d9fd44..67e8de734b 100644
      parser.add_argument("--num-dirs", type=int, default=1)
      parser.add_argument("--num-l2caches", type=int, default=1)
      parser.add_argument("--num-l3caches", type=int, default=1)
-diff --git a/configs/common/MemConfig.py b/configs/common/MemConfig.py
-index baa0d233af..d51f6e359e 100644
---- a/configs/common/MemConfig.py
-+++ b/configs/common/MemConfig.py
-@@ -38,7 +38,8 @@ from common import ObjectList
- from common import HMC
- 
- 
--def create_mem_intf(intf, r, i, intlv_bits, intlv_size, xor_low_bit):
-+def create_mem_intf(intf, r, i, intlv_bits, intlv_size, xor_low_bit,
-+        opt_dram_device_size):
-     """
-     Helper function for creating a single memoy controller from the given
-     options.  This function is invoked multiple times in config_mem function
-@@ -63,6 +64,9 @@ def create_mem_intf(intf, r, i, intlv_bits, intlv_size, xor_low_bit):
-     # mapping and row-buffer size
-     interface = intf()
- 
-+    if opt_dram_device_size:
-+        interface.device_size = opt_dram_device_size
-+
-     # Only do this for DRAMs
-     if issubclass(intf, m5.objects.DRAMInterface):
-         # If the channel bits are appearing after the column
-@@ -141,6 +145,7 @@ def config_mem(options, system):
-     opt_dram_powerdown = getattr(options, "enable_dram_powerdown", None)
-     opt_mem_channels_intlv = getattr(options, "mem_channels_intlv", 128)
-     opt_xor_low_bit = getattr(options, "xor_low_bit", 0)
-+    opt_dram_device_size = getattr(options, "dram_device_size", None)
- 
-     if opt_mem_type == "HMC_2500_1x32":
-         HMChost = HMC.config_hmc_host_ctrl(options, system)
-@@ -213,7 +218,8 @@ def config_mem(options, system):
-             if opt_mem_type and (not opt_nvm_type or range_iter % 2 != 0):
-                 # Create the DRAM interface
-                 dram_intf = create_mem_intf(
--                    intf, r, i, intlv_bits, intlv_size, opt_xor_low_bit
-+                    intf, r, i, intlv_bits, intlv_size, opt_xor_low_bit,
-+                    opt_dram_device_size
-                 )
- 
-                 # Set the number of ranks based on the command-line
 diff --git a/src/mem/XBar.py b/src/mem/XBar.py
-index d0becc22a8..ea9b4c02f8 100644
+index d0becc22a8..b112ea54a0 100644
 --- a/src/mem/XBar.py
 +++ b/src/mem/XBar.py
-@@ -223,3 +223,12 @@ class IOXBar(NoncoherentXBar):
+@@ -223,3 +223,13 @@ class IOXBar(NoncoherentXBar):
      frontend_latency = 2
      forward_latency = 1
      response_latency = 2
++
 +
 +class L3XBar(CoherentXBar):
 +    width = 32
@@ -175,3 +196,6 @@ index d0becc22a8..ea9b4c02f8 100644
 +    snoop_response_latency = 1
 +    snoop_filter = SnoopFilter(lookup_latency=0)
 +    point_of_unification = True
+-- 
+2.34.1
+

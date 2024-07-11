@@ -1,0 +1,202 @@
+From 436f109ba2cd0f9309053dadd91b9c4edd700c2c Mon Sep 17 00:00:00 2001
+From: wanjudoh <wj.doh@scale.snu.ac.kr>
+Date: Thu, 11 Jul 2024 02:05:44 +0000
+Subject: [PATCH 4/5] cpu: Add backend bound analysis
+
+Change-Id: Ic4bc39cacdb745ba58de4c0d3385750a4e4d5f31
+---
+ src/cpu/o3/iew.cc        | 44 +++++++++++++++++++++++++++++++++++++++-
+ src/cpu/o3/iew.hh        | 18 ++++++++++++++++
+ src/cpu/o3/inst_queue.hh |  5 +++++
+ src/cpu/o3/lsq.cc        | 31 ++++++++++++++++++++++++++++
+ src/cpu/o3/lsq.hh        |  4 ++++
+ 5 files changed, 101 insertions(+), 1 deletion(-)
+
+diff --git a/src/cpu/o3/iew.cc b/src/cpu/o3/iew.cc
+index a8acb4c762..7f838c1b40 100644
+--- a/src/cpu/o3/iew.cc
++++ b/src/cpu/o3/iew.cc
+@@ -188,7 +188,25 @@ IEW::IEWStats::IEWStats(CPU *cpu)
+              "Insts written-back per cycle"),
+     ADD_STAT(wbFanout, statistics::units::Rate<
+                 statistics::units::Count, statistics::units::Count>::get(),
+-             "Average fanout of values written-back")
++             "Average fanout of values written-back"),
++
++    ADD_STAT(noExecuteCycles, statistics::units::Cycle::get(),
++             "Number of cycles executing no instruction"),
++    ADD_STAT(oneExecuteCycles, statistics::units::Cycle::get(),
++             "Number of cycles executing 1 instruction"),
++    ADD_STAT(twoExecuteCycles, statistics::units::Cycle::get(),
++             "Number of cycles executing 2 instructions"),
++    ADD_STAT(threeExecuteCycles, statistics::units::Cycle::get(),
++             "Number of cycles executing 3 instructions"),
++    ADD_STAT(fourExecuteCycles, statistics::units::Cycle::get(),
++             "Number of cycles executing 4 instructions"),
++
++    ADD_STAT(anyLoadCycles, statistics::units::Cycle::get(),
++             "Number of cycles executing FEW instructions \
++             when in-flight memory loads exist"),
++    ADD_STAT(anyStoreCycles, statistics::units::Cycle::get(),
++             "Number of cycles executing FEW instructions \
++             when store buffer is full")
+ {
+     instsToCommit
+         .init(cpu->numThreads)
+@@ -1096,6 +1114,10 @@ IEW::printAvailableInsts()
+ void
+ IEW::executeInsts()
+ {
++    bool instQueueEmpty = instQueue.isEmpty();
++    bool pendingLoad = ldstQueue.isAnyLoad();
++    bool storeQueueFull = ldstQueue.isStoreFull();
++
+     wbNumInst = 0;
+     wbCycle = 0;
+ 
+@@ -1332,6 +1354,26 @@ IEW::executeInsts()
+         cpu->activityThisCycle();
+     }
+ 
++    if (inst_num == 0 && !instQueueEmpty) {
++        ++iewStats.noExecuteCycles;
++        if (pendingLoad) {
++            ++iewStats.anyLoadCycles;
++        } else if (storeQueueFull) {
++            ++iewStats.anyStoreCycles;
++        }
++    } else if (inst_num == 1) {
++        ++iewStats.oneExecuteCycles;
++        if (storeQueueFull) {
++            ++iewStats.anyStoreCycles;
++        }
++    } else if (inst_num == 2) {
++        ++iewStats.twoExecuteCycles;
++    } else if (inst_num == 3) {
++        ++iewStats.threeExecuteCycles;
++    } else if (inst_num == 4) {
++        ++iewStats.fourExecuteCycles;
++    }
++
+     // Need to reset this in case a writeback event needs to write into the
+     // iew queue.  That way the writeback event will write into the correct
+     // spot in the queue.
+diff --git a/src/cpu/o3/iew.hh b/src/cpu/o3/iew.hh
+index 4fe8227dcc..9e4f8ae179 100644
+--- a/src/cpu/o3/iew.hh
++++ b/src/cpu/o3/iew.hh
+@@ -474,6 +474,24 @@ class IEW
+         statistics::Formula wbRate;
+         /** Average number of woken instructions per writeback. */
+         statistics::Formula wbFanout;
++
++        /** Number of cycles that no uOp is executed */
++        statistics::Scalar noExecuteCycles;
++        /** Number of cycles that one uOp is executed */
++        statistics::Scalar oneExecuteCycles;
++        /** Number of cycles that two uOps are executed */
++        statistics::Scalar twoExecuteCycles;
++        /** Number of cycles that three uOps are executed */
++        statistics::Scalar threeExecuteCycles;
++        /** Number of cycles that four uOps are executed */
++        statistics::Scalar fourExecuteCycles;
++        /** Cycles with no uOps executed and at least
++         * 1 in-flight load that is not completed yet */
++        statistics::Scalar anyLoadCycles;
++        /** Cycles with few uOps executed and no more
++         * stores can be issued */
++        statistics::Scalar anyStoreCycles;
++
+     } iewStats;
+ };
+ 
+diff --git a/src/cpu/o3/inst_queue.hh b/src/cpu/o3/inst_queue.hh
+index 57928e7478..3f058c3e2e 100644
+--- a/src/cpu/o3/inst_queue.hh
++++ b/src/cpu/o3/inst_queue.hh
+@@ -178,6 +178,11 @@ class InstructionQueue
+     /** Returns whether or not the IQ is full for a specific thread. */
+     bool isFull(ThreadID tid);
+ 
++    /** Returns whether or not the IQ is empty. */
++    bool isEmpty() {
++      return freeEntries == numEntries;
++    }
++
+     /** Returns if there are any ready instructions in the IQ. */
+     bool hasReadyInsts();
+ 
+diff --git a/src/cpu/o3/lsq.cc b/src/cpu/o3/lsq.cc
+index d30a399f92..1292055c5e 100644
+--- a/src/cpu/o3/lsq.cc
++++ b/src/cpu/o3/lsq.cc
+@@ -503,6 +503,21 @@ LSQ::numLoads()
+     return total;
+ }
+ 
++bool
++LSQ::isAnyLoad()
++{
++    std::list<ThreadID>::iterator threads = activeThreads->begin();
++    std::list<ThreadID>::iterator end = activeThreads->end();
++
++    while (threads != end) {
++        ThreadID tid = *threads++;
++        if (numLoads(tid) >= 0)
++            return true;
++    }
++
++    return false;
++}
++
+ int
+ LSQ::numStores()
+ {
+@@ -566,6 +581,22 @@ LSQ::numFreeStoreEntries(ThreadID tid)
+         return thread[tid].numFreeStoreEntries();
+ }
+ 
++bool
++LSQ::isStoreFull()
++{
++    std::list<ThreadID>::iterator threads = activeThreads->begin();
++    std::list<ThreadID>::iterator end = activeThreads->end();
++
++    while (threads != end) {
++        ThreadID tid = *threads++;
++
++        if (!(thread[tid].sqFull()))
++            return false;
++    }
++
++    return true;
++}
++
+ bool
+ LSQ::isFull()
+ {
+diff --git a/src/cpu/o3/lsq.hh b/src/cpu/o3/lsq.hh
+index 130c3479fa..6066b8d808 100644
+--- a/src/cpu/o3/lsq.hh
++++ b/src/cpu/o3/lsq.hh
+@@ -755,6 +755,7 @@ class LSQ
+     /** Returns the total number of stores for a single thread. */
+     int numStores(ThreadID tid);
+ 
++    bool isAnyLoad();
+ 
+     // hardware transactional memory
+ 
+@@ -779,6 +780,9 @@ class LSQ
+     /** Returns the number of free entries in the SQ for a specific thread. */
+     unsigned numFreeStoreEntries(ThreadID tid);
+ 
++    /** Returns whether or not the SQ is full. */
++    bool isStoreFull();
++
+     /** Returns if the LSQ is full (either LQ or SQ is full). */
+     bool isFull();
+     /**
+-- 
+2.34.1
+

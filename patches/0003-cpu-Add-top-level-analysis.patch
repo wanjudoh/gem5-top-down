@@ -1,0 +1,88 @@
+From d8d9a3f6384769ff52ee3f9b32266ba05e1f4002 Mon Sep 17 00:00:00 2001
+From: wanjudoh <wj.doh@scale.snu.ac.kr>
+Date: Thu, 11 Jul 2024 01:36:26 +0000
+Subject: [PATCH 3/5] cpu: Add top level analysis
+
+Change-Id: Ib08e82d607cb45037675ca4411522bc6fe1e16e8
+---
+ src/cpu/o3/cpu.hh    |  2 ++
+ src/cpu/o3/rename.cc | 13 +++++++++++--
+ src/cpu/o3/rename.hh |  2 ++
+ 3 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cpu/o3/cpu.hh b/src/cpu/o3/cpu.hh
+index 1d100ab330..c6c40999b7 100644
+--- a/src/cpu/o3/cpu.hh
++++ b/src/cpu/o3/cpu.hh
+@@ -397,6 +397,8 @@ class CPU : public BaseCPU
+      */
+     bool removeInstsThisCycle;
+ 
++    unsigned decodeWidth;
++
+   protected:
+     /** The fetch stage. */
+     Fetch fetch;
+diff --git a/src/cpu/o3/rename.cc b/src/cpu/o3/rename.cc
+index f8c305eb1c..bb44d88b39 100644
+--- a/src/cpu/o3/rename.cc
++++ b/src/cpu/o3/rename.cc
+@@ -145,7 +145,10 @@ Rename::RenameStats::RenameStats(statistics::Group *parent)
+       ADD_STAT(tempSerializing, statistics::units::Count::get(),
+                "count of temporary serializing insts renamed"),
+       ADD_STAT(skidInsts, statistics::units::Count::get(),
+-               "count of insts added to the skid buffer")
++               "count of insts added to the skid buffer"),
++      ADD_STAT(uOpsNotDelivered, statistics::units::Count::get(),
++               "Number of uOps not delivered to backend when backend is "
++               "not stalled")
+ {
+     squashCycles.prereq(squashCycles);
+     idleCycles.prereq(idleCycles);
+@@ -176,6 +179,7 @@ Rename::RenameStats::RenameStats(statistics::Group *parent)
+     serializing.flags(statistics::total);
+     tempSerializing.flags(statistics::total);
+     skidInsts.flags(statistics::total);
++    uOpsNotDelivered.prereq(uOpsNotDelivered);
+ }
+ 
+ void
+@@ -521,7 +525,7 @@ Rename::renameInsts(ThreadID tid)
+                 tid);
+         // Should I change status to idle?
+         ++stats.idleCycles;
+-        return;
++        // return;
+     } else if (renameStatus[tid] == Unblocking) {
+         ++stats.unblockCycles;
+     } else if (renameStatus[tid] == Running) {
+@@ -569,8 +573,13 @@ Rename::renameInsts(ThreadID tid)
+         blockThisCycle = true;
+ 
+         incrFullStat(source);
++    } else if (insts_available < cpu->decodeWidth) {
++        stats.uOpsNotDelivered += cpu->decodeWidth - insts_available;
+     }
+ 
++    if (insts_available == 0)
++        return;
++
+     InstQueue &insts_to_rename = renameStatus[tid] == Unblocking ?
+         skidBuffer[tid] : insts[tid];
+ 
+diff --git a/src/cpu/o3/rename.hh b/src/cpu/o3/rename.hh
+index 61ef476501..334eb8f76e 100644
+--- a/src/cpu/o3/rename.hh
++++ b/src/cpu/o3/rename.hh
+@@ -533,6 +533,8 @@ class Rename
+         statistics::Scalar tempSerializing;
+         /** Number of instructions inserted into skid buffers. */
+         statistics::Scalar skidInsts;
++        /** Number of instructions not delivered to backend. */
++        statistics::Scalar uOpsNotDelivered;
+     } stats;
+ };
+ 
+-- 
+2.34.1
+

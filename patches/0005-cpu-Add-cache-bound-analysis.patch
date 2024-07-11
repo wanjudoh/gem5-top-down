@@ -1,0 +1,212 @@
+From ec943911edface5d71289be2886b9f3ed52201ff Mon Sep 17 00:00:00 2001
+From: wanjudoh <wj.doh@scale.snu.ac.kr>
+Date: Thu, 11 Jul 2024 03:25:22 +0000
+Subject: [PATCH 5/5] cpu: Add cache bound analysis
+
+Change-Id: I25f66e45ef2607f49c524682b679e86474362d08
+---
+ src/cpu/o3/iew.cc      | 27 ++++++++++++++++++++++++++-
+ src/cpu/o3/iew.hh      | 12 ++++++++++++
+ src/cpu/o3/lsq.cc      | 21 +++++++++++++++++++++
+ src/cpu/o3/lsq.hh      |  4 ++++
+ src/cpu/o3/lsq_unit.cc | 24 +++++++++++++++++++++++-
+ src/cpu/o3/lsq_unit.hh |  5 +++++
+ 6 files changed, 91 insertions(+), 2 deletions(-)
+
+diff --git a/src/cpu/o3/iew.cc b/src/cpu/o3/iew.cc
+index 7f838c1b40..4ac9c064b5 100644
+--- a/src/cpu/o3/iew.cc
++++ b/src/cpu/o3/iew.cc
+@@ -206,7 +206,14 @@ IEW::IEWStats::IEWStats(CPU *cpu)
+              when in-flight memory loads exist"),
+     ADD_STAT(anyStoreCycles, statistics::units::Cycle::get(),
+              "Number of cycles executing FEW instructions \
+-             when store buffer is full")
++             when store buffer is full"),
++
++    ADD_STAT(memStallsL1Miss, statistics::units::Cycle::get(),
++             "Number of cycles stalls due to L1 miss"),
++    ADD_STAT(memStallsL2Miss, statistics::units::Cycle::get(),
++             "Number of cycles stalls due to L2 miss"),
++    ADD_STAT(memStallsL3Miss, statistics::units::Cycle::get(),
++             "Number of cycles stalls due to L3 miss")
+ {
+     instsToCommit
+         .init(cpu->numThreads)
+@@ -1358,6 +1365,7 @@ IEW::executeInsts()
+         ++iewStats.noExecuteCycles;
+         if (pendingLoad) {
+             ++iewStats.anyLoadCycles;
++            memoryBound = true;
+         } else if (storeQueueFull) {
+             ++iewStats.anyStoreCycles;
+         }
+@@ -1436,6 +1444,7 @@ IEW::tick()
+ {
+     wbNumInst = 0;
+     wbCycle = 0;
++    memoryBound = false;
+ 
+     wroteToTimeBuffer = false;
+     updatedQueues = false;
+@@ -1547,6 +1556,22 @@ IEW::tick()
+                 tid, toRename->iewInfo[tid].dispatched);
+     }
+ 
++    if (memoryBound) {
++        int cacheBoundLevel = ldstQueue.checkCacheBound();
++        switch (cacheBoundLevel)
++        {
++        case 1:
++            ++iewStats.memStallsL1Miss;
++            break;
++        case 2:
++            ++iewStats.memStallsL2Miss;
++            break;
++        case 3:
++            ++iewStats.memStallsL3Miss;
++            break;
++        }
++    }
++
+     DPRINTF(IEW, "IQ has %i free entries (Can schedule: %i).  "
+             "LQ has %i free entries. SQ has %i free entries.\n",
+             instQueue.numFreeEntries(), instQueue.hasReadyInsts(),
+diff --git a/src/cpu/o3/iew.hh b/src/cpu/o3/iew.hh
+index 9e4f8ae179..6e4e514412 100644
+--- a/src/cpu/o3/iew.hh
++++ b/src/cpu/o3/iew.hh
+@@ -364,6 +364,8 @@ class IEW
+      */
+     bool updateLSQNextCycle;
+ 
++    bool memoryBound;
++
+   private:
+     /** Records if there is a fetch redirect on this cycle for each thread. */
+     bool fetchRedirect[MaxThreads];
+@@ -492,6 +494,16 @@ class IEW
+          * stores can be issued */
+         statistics::Scalar anyStoreCycles;
+ 
++        /** Stat for total number of cycles
++         * when there is any load which missed in L1 cache*/
++        statistics::Scalar memStallsL1Miss;
++        /** Stat for total number of cycles
++         * when there is any load which missed in L2 cache*/
++        statistics::Scalar memStallsL2Miss;
++        /** Stat for total number of cycles
++         * when there is any load which missed in L3 cache*/
++        statistics::Scalar memStallsL3Miss;
++
+     } iewStats;
+ };
+ 
+diff --git a/src/cpu/o3/lsq.cc b/src/cpu/o3/lsq.cc
+index 1292055c5e..687f1a0387 100644
+--- a/src/cpu/o3/lsq.cc
++++ b/src/cpu/o3/lsq.cc
+@@ -340,6 +340,27 @@ int LSQ::numLoads(ThreadID tid) { return thread.at(tid).numLoads(); }
+ 
+ int LSQ::numStores(ThreadID tid) { return thread.at(tid).numStores(); }
+ 
++int LSQ::checkCacheBound(ThreadID tid) {
++    return thread.at(tid).checkCacheBound();
++}
++
++int
++LSQ::checkCacheBound()
++{
++    std::list<ThreadID>::iterator threads = activeThreads->begin();
++    std::list<ThreadID>::iterator end = activeThreads->end();
++    int cacheBoundLevel = 0;
++    int temp;
++
++    while (threads != end) {
++        ThreadID tid = *threads++;
++        temp = checkCacheBound(tid);
++        if (temp > cacheBoundLevel)
++            cacheBoundLevel = temp;
++    }
++    return cacheBoundLevel;
++}
++
+ int
+ LSQ::numHtmStarts(ThreadID tid) const
+ {
+diff --git a/src/cpu/o3/lsq.hh b/src/cpu/o3/lsq.hh
+index 6066b8d808..5fcd7dffaa 100644
+--- a/src/cpu/o3/lsq.hh
++++ b/src/cpu/o3/lsq.hh
+@@ -757,6 +757,10 @@ class LSQ
+ 
+     bool isAnyLoad();
+ 
++    /** Check the cache-level where the demand-load is missing */
++    int checkCacheBound();
++    int checkCacheBound(ThreadID tid);
++
+     // hardware transactional memory
+ 
+     int numHtmStarts(ThreadID tid) const;
+diff --git a/src/cpu/o3/lsq_unit.cc b/src/cpu/o3/lsq_unit.cc
+index 139e0de337..b0c6ffa71f 100644
+--- a/src/cpu/o3/lsq_unit.cc
++++ b/src/cpu/o3/lsq_unit.cc
+@@ -421,7 +421,29 @@ LSQUnit::numFreeStoreEntries()
+                 storeQueue.capacity(), storeQueue.size());
+         return storeQueue.capacity() - storeQueue.size();
+ 
+- }
++}
++
++int
++LSQUnit::checkCacheBound()
++{
++    LSQRequest* request = NULL;
++    CircularQueue<LQEntry>::iterator it = loadQueue.begin();
++    CircularQueue<LQEntry>::iterator end = loadQueue.end();
++    int cacheBoundLevel = 0;
++
++    while (it != end) {
++        if (it->hasRequest() && it->valid()) {
++            request = it->request();
++            for (auto r: request->_reqs) {
++                int cache_level = r->getAccessDepth();
++                if (cache_level > cacheBoundLevel)
++                    cacheBoundLevel = cache_level;
++            }
++        }
++        it++;
++    }
++    return cacheBoundLevel;
++}
+ 
+ void
+ LSQUnit::checkSnoop(PacketPtr pkt)
+diff --git a/src/cpu/o3/lsq_unit.hh b/src/cpu/o3/lsq_unit.hh
+index b807179f2d..ed2fd7eb70 100644
+--- a/src/cpu/o3/lsq_unit.hh
++++ b/src/cpu/o3/lsq_unit.hh
+@@ -207,6 +207,9 @@ class LSQUnit
+   public:
+     using LoadQueue = CircularQueue<LQEntry>;
+     using StoreQueue = CircularQueue<SQEntry>;
++    bool L1CacheMiss;
++    bool L2CacheMiss;
++    bool L3CacheMiss;
+ 
+   public:
+     /** Constructs an LSQ unit. init() must be called prior to use. */
+@@ -304,6 +307,8 @@ class LSQUnit
+     /** Returns the number of stores in the SQ. */
+     int numStores() { return storeQueue.size(); }
+ 
++    int checkCacheBound();
++
+     // hardware transactional memory
+     int numHtmStarts() const { return htmStarts; }
+     int numHtmStops() const { return htmStops; }
+-- 
+2.34.1
+
