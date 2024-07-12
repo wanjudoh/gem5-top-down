@@ -25,7 +25,6 @@ int main(int argc, char *argv[]) {
         cout << "Please provide the number of iterations and array size\n";
     }
 
-    int count = 0;
     element *ptr_list = nullptr;
     ptr_list = (element *)aligned_alloc(32, sizeof(element) * size);
 
@@ -33,50 +32,62 @@ int main(int argc, char *argv[]) {
         ptr_list[i].value = 1;
     }
 
+    unsigned int i = 0, j = 0;
+    unsigned int jump = 1;
+
+    unsigned int count[32];
+    for (i = 0; i < 32; i++) {
+        count[i] = 0;
+    }
+
+    unsigned int lfsr = 0x80000000;
+    unsigned bit;
+
     __asm__ __volatile__("nop");
     __asm__ __volatile__("nop");
     __asm__ __volatile__("nop");
 
-    for (int i = 0; i < iterations; i++) {
-        srand((unsigned int)time(NULL));
-        for (int j = 0; j <= size - 32; j += 32) {
-            int index = (rand() % (size / 32)) * 32;
-            
-            count += ptr_list[index].value;
-            count += ptr_list[index + 1].value;
-            count += ptr_list[index + 2].value;
-            count += ptr_list[index + 3].value;
-            count += ptr_list[index + 4].value;
-            count += ptr_list[index + 5].value;
-            count += ptr_list[index + 6].value;
-            count += ptr_list[index + 7].value;
+    for (i = 0; i < iterations; i++) {
+        for (j = 0; j <= size; j += 32) {
+            bit  = ~((lfsr >> 0) ^ (lfsr >> 10) ^ (lfsr >> 11) ^ (lfsr >> 30) ) & 1;
+            lfsr =  (lfsr >> 1) | (bit << 31);
 
-            count += ptr_list[index + 8].value;
-            count += ptr_list[index + 9].value;
-            count += ptr_list[index + 10].value;
-            count += ptr_list[index + 11].value;
-            count += ptr_list[index + 12].value;
-            count += ptr_list[index + 13].value;
-            count += ptr_list[index + 14].value;
-            count += ptr_list[index + 15].value;
+            jump = lfsr % (size - 32);
+            count[0] += ptr_list[jump].value;
+            count[1] += ptr_list[jump + 1].value;
+            count[2] += ptr_list[jump + 2].value;
+            count[3] += ptr_list[jump + 3].value;
+            count[4] += ptr_list[jump + 4].value;
+            count[5] += ptr_list[jump + 5].value;
+            count[6] += ptr_list[jump + 6].value;
+            count[7] += ptr_list[jump + 7].value;
 
-            count += ptr_list[index + 16].value;
-            count += ptr_list[index + 17].value;
-            count += ptr_list[index + 18].value;
-            count += ptr_list[index + 19].value;
-            count += ptr_list[index + 20].value;
-            count += ptr_list[index + 21].value;
-            count += ptr_list[index + 22].value;
-            count += ptr_list[index + 23].value;
+            count[8] += ptr_list[jump + 8].value;
+            count[9] += ptr_list[jump + 9].value;
+            count[10] += ptr_list[jump + 10].value;
+            count[11] += ptr_list[jump + 11].value;
+            count[12] += ptr_list[jump + 12].value;
+            count[13] += ptr_list[jump + 13].value;
+            count[14] += ptr_list[jump + 14].value;
+            count[15] += ptr_list[jump + 15].value;
 
-            count += ptr_list[index + 24].value;
-            count += ptr_list[index + 25].value;
-            count += ptr_list[index + 26].value;
-            count += ptr_list[index + 27].value;
-            count += ptr_list[index + 28].value;
-            count += ptr_list[index + 29].value;
-            count += ptr_list[index + 30].value;
-            count += ptr_list[index + 31].value;
+            count[16] += ptr_list[jump + 16].value;
+            count[17] += ptr_list[jump + 17].value;
+            count[18] += ptr_list[jump + 18].value;
+            count[19] += ptr_list[jump + 19].value;
+            count[20] += ptr_list[jump + 20].value;
+            count[21] += ptr_list[jump + 21].value;
+            count[22] += ptr_list[jump + 22].value;
+            count[23] += ptr_list[jump + 23].value;
+
+            count[24] += ptr_list[jump + 24].value;
+            count[25] += ptr_list[jump + 25].value;
+            count[26] += ptr_list[jump + 26].value;
+            count[27] += ptr_list[jump + 27].value;
+            count[28] += ptr_list[jump + 28].value;
+            count[29] += ptr_list[jump + 29].value;
+            count[30] += ptr_list[jump + 30].value;
+            count[31] += ptr_list[jump + 31].value;
         }
     }
 
