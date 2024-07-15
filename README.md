@@ -8,14 +8,19 @@ $ cd gem5-top-down
 ```
 
 * Patch를 적용합니다.
-    * 001: L3 cache와 DRAM device size를 설정할 수 있도록 한 patch입니다.
-    * 002: CPU의 pipeline width와 buffer들의 크기를 설정할 수 있도록 한 patch입니다.
-    * 003: Top-down 분석을 위한 patch입니다.
+    * 0001-Add-L3-and-DRAM-device-size-options.patch
+        * L3 cache와 DRAM device size를 설정할 수 있도록 한 patch입니다.
+    * 0002-Add-cpu-options.patch
+        * CPU의 pipeline width와 buffer들의 크기를 설정할 수 있도록 한 patch입니다.
+    * 0003-Add-top-level-analysis.patch
+        * Top-level 분석을 위한 patch입니다.
+    * 0004-Add-backend-bound-analysis.patch
+        * Backend bound breakdown을 위한 patch입니다.
+    * 0005-Add-cache-bound-analysis.patch
+        * Memory bound breakdown을 위한 patch입니다.
 ```
-$ cd gem5
-$ patch -p1 < ../patches/001-Add-L3-and-DRAM-device-size-options.patch
-$ patch -p1 < ../patches/002-Add-cpu-options.patch
-$ patch -p1 < ../patches/003-Top-level.patch
+$ cd gem5_script
+$ ./apply_patches.sh
 ```
 
 * Build Gem5 simulator
@@ -23,6 +28,8 @@ $ patch -p1 < ../patches/003-Top-level.patch
 ```
 $ scons ./build/RISCV/gem5.opt -j`nproc`
 ```
+
+## Splash-4
 
 ### Build Splash-4
 * Splash-4를 clone한 뒤 risc-v cross-compiler를 사용하여 build합니다.
@@ -42,7 +49,7 @@ CFLAGS :=  ... -static  # add -static flag
 $ make
 ```
 
-### Run
+### Run Splash-4
 * gem5_script 디렉토리 아래에 시뮬레이션 실행을 위한 스크립트들이 포함되어있습니다.
     * config_riscv.cfg: 시뮬레이션할 system의 옵션들을 지정해주는 config file
     * gem5.py: gem5를 실행시키는 python script
@@ -62,6 +69,27 @@ $ python3 ./gem5.py -f config_riscv.cfg -o test -b fft
 $ ./run_gem5_riscv.sh
 ```
 * 시뮬레이션을 실행하고 나면 gem5_script/results 디렉토리 아래에 시뮬레이션 결과 파일들이 저장됩니다.
+
+## Microbenchmark
+
+* microbenchmarks 디렉토리 아래에 코드와 binary들이 포함되어있습니다.
+    * control: random_#.cc라는 이름의 파일들이 포함되어있으며 #은 branch문의 randomness를 나타냅니다.
+    * dependency: chain_#.cc라는 이름의 파일들이 포함되어있으며 #은 read-after-write dependency간의 거리를 나타냅니다.
+    * execution: int/fp, add/div/mul을 수행하는 microbenchmark들이 포함되어있습니다.
+    * memory: load/store, dependent/independent/random을 수행하는 microbenchmark들이 포함되어있습니다.
+* micro_script 디렉토리 아래에 microbenchmark들을 실행시킬 수 있는 스크립트들이 포함되어있습니다.
+```
+$ cd micro_script
+
+# gem5, microbenchmark.py, microbenchmarks/ 경로 수정
+$ vi micro_config.cfg
+
+# run microbenchmark
+$ python3 ./gem5_microbenchmark.py -f micro_config.cfg -o <output path> -b <microbenchmark name> -i <iter> [-s <size>]
+
+# example: Randomly load 16KB of data
+$ python3 ./gem5_microbenchmark.py -f micro_config.cfg -o <OUTDIR> -b load_random -i 100000 -s 512
+```
 
 ## Top-level analysis
 * gem5_script 디렉토리 아래에 top-level 분석을 수행해주는 python 스크립트가 포함되어있습니다.
