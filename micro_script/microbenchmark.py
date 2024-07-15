@@ -53,15 +53,30 @@ def get_processes(args):
     elif workloads[0] == "chain_2":
         chain_2().cmd.append(m5.params.String(workloads[1]))
         process = chain_2()
+    elif workloads[0] == "chain_3":
+        chain_3().cmd.append(m5.params.String(workloads[1]))
+        process = chain_3()
     elif workloads[0] == "chain_4":
         chain_4().cmd.append(m5.params.String(workloads[1]))
         process = chain_4()
+    elif workloads[0] == "chain_5":
+        chain_5().cmd.append(m5.params.String(workloads[1]))
+        process = chain_5()
     elif workloads[0] == "chain_6":
         chain_6().cmd.append(m5.params.String(workloads[1]))
         process = chain_6()
+    elif workloads[0] == "chain_7":
+        chain_7().cmd.append(m5.params.String(workloads[1]))
+        process = chain_7()
     elif workloads[0] == "chain_8":
         chain_8().cmd.append(m5.params.String(workloads[1]))
         process = chain_8()
+    elif workloads[0] == "chain_9":
+        chain_9().cmd.append(m5.params.String(workloads[1]))
+        process = chain_9()
+    elif workloads[0] == "chain_10":
+        chain_10().cmd.append(m5.params.String(workloads[1]))
+        process = chain_10()
 
     # ---------------Execution--------------- #
     elif workloads[0] == "int_add":
@@ -158,20 +173,45 @@ class chain_2(Process):
     executable = args.benchdir + "/dependency/chain_2"
     cmd = ["chain_2"]
 
+class chain_3(Process):
+    cwd = args.benchdir + "/dependency"
+    executable = args.benchdir + "/dependency/chain_3"
+    cmd = ["chain_3"]
+
 class chain_4(Process):
     cwd = args.benchdir + "/dependency"
     executable = args.benchdir + "/dependency/chain_4"
     cmd = ["chain_4"]
+
+class chain_5(Process):
+    cwd = args.benchdir + "/dependency"
+    executable = args.benchdir + "/dependency/chain_5"
+    cmd = ["chain_5"]
 
 class chain_6(Process):
     cwd = args.benchdir + "/dependency"
     executable = args.benchdir + "/dependency/chain_6"
     cmd = ["chain_6"]
 
+class chain_7(Process):
+    cwd = args.benchdir + "/dependency"
+    executable = args.benchdir + "/dependency/chain_7"
+    cmd = ["chain_7"]
+
 class chain_8(Process):
     cwd = args.benchdir + "/dependency"
     executable = args.benchdir + "/dependency/chain_8"
     cmd = ["chain_8"]
+
+class chain_9(Process):
+    cwd = args.benchdir + "/dependency"
+    executable = args.benchdir + "/dependency/chain_9"
+    cmd = ["chain_9"]
+
+class chain_10(Process):
+    cwd = args.benchdir + "/dependency"
+    executable = args.benchdir + "/dependency/chain_10"
+    cmd = ["chain_10"]
 
 # ---------------Execution--------------- #
 class int_add(Process):

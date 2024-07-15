@@ -15,6 +15,7 @@ int main(int argc, char *argv[]) {
     int count1 = 0;
     int count2 = 0;
     int count3 = 0;
+    int count4 = 0;
 
     __asm__ __volatile__("nop");
     __asm__ __volatile__("nop");
@@ -25,46 +26,43 @@ int main(int argc, char *argv[]) {
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count2) : "0" (count2) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count3) : "0" (count3) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count4) : "0" (count4) : );
 
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count2) : "0" (count2) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count3) : "0" (count3) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count4) : "0" (count4) : );
 
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count2) : "0" (count2) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count3) : "0" (count3) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count4) : "0" (count4) : );
 
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count2) : "0" (count2) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count3) : "0" (count3) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count4) : "0" (count4) : );
 
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count2) : "0" (count2) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count3) : "0" (count3) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count4) : "0" (count4) : );
 
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count2) : "0" (count2) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count3) : "0" (count3) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count4) : "0" (count4) : );
 
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count2) : "0" (count2) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count3) : "0" (count3) : );
-
-        __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
-        __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
-        __asm__ __volatile__("add x0, x0, x0" : "=r" (count2) : "0" (count2) : );
-        __asm__ __volatile__("add x0, x0, x0" : "=r" (count3) : "0" (count3) : );
-
-        __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
-        __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
-        __asm__ __volatile__("add x0, x0, x0" : "=r" (count2) : "0" (count2) : );
-        __asm__ __volatile__("add x0, x0, x0" : "=r" (count3) : "0" (count3) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count4) : "0" (count4) : );
     }
 
     __asm__ __volatile__("nop");

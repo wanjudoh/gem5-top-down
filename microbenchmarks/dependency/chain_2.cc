@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
     }
 
     int count0 = 0;
-    int count1 = 0;
+    int count1 = 1;
 
     __asm__ __volatile__("nop");
     __asm__ __volatile__("nop");
@@ -50,6 +50,11 @@ int main(int argc, char *argv[]) {
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
+        __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
+
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count1) : "0" (count1) : );
         __asm__ __volatile__("add x0, x0, x0" : "=r" (count0) : "0" (count0) : );
