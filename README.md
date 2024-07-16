@@ -82,7 +82,7 @@ $ ./run_gem5_riscv.sh
 $ cd micro_script
 
 # gem5, microbenchmark.py, microbenchmarks/ 경로 수정
-$ vi micro_config.cfg
+$ vim micro_config.cfg
 
 # run microbenchmark
 $ python3 ./gem5_microbenchmark.py -f micro_config.cfg -o <output path> -b <microbenchmark name> -i <iter> [-s <size>]
@@ -93,13 +93,23 @@ $ python3 ./gem5_microbenchmark.py -f micro_config.cfg -o <OUTDIR> -b load_rando
 
 ## Top-level analysis
 * gem5_script 디렉토리 아래에 top-level 분석을 수행해주는 python 스크립트가 포함되어있습니다.
+* python 스크립트에서는 인자로 넣어주는 디렉토리 경로에 위치한 config 파일과 result 파일을 parsing하여 top-down 분석 결과를 출력해줍니다.
 ```
 $ cd gem5_script
 $ python3 ./parse_topdown.py <result directory>
 
-# Ex) python3 ./parse_topdown.py ./results/12-28-19-01-riscv/fft
-Retiring: 0.3057830063700331
-Bad speculation: 0.0070259509263605685
-Frontend bound: 0.22879423265227428
-Backend bound: 0.45839681005133204
+# Ex) python3 ./parse_topdown.py ./results/12-28-19-01-riscv/fft/
+Retiring         0.18844549832499766
+Bad speculation  0.0008710425458097292
+Frontend bound   0.37639162243244656
+Backend bound    0.4342918366967461
+
+Memory bound     0.1466118576056442
+Core bound       0.40294662321065733
+
+Store bound      0.022279821834374613
+L1 bound         0.11545322754428365
+L2 bound         0.0004792079482686507
+L3 bound         0.0001608710328532471
+DRAM bound       0.008238729245864043
 ```
