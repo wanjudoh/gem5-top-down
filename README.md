@@ -98,7 +98,7 @@ $ python3 ./gem5_microbenchmark.py -f micro_config.cfg -o <OUTDIR> -b load_rando
 $ cd gem5_script
 $ python3 ./parse_topdown.py <result directory>
 
-# Ex) python3 ./parse_topdown.py ./results/12-28-19-01-riscv/fft/
+# Ex) python3 ./parse_topdown.py ../micro_script/results/dep_6/dependency/chain_6/
 Retiring         0.18844549832499766
 Bad speculation  0.0008710425458097292
 Frontend bound   0.37639162243244656
