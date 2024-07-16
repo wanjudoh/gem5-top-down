@@ -4,8 +4,10 @@ Date: Thu, 11 Jul 2024 01:03:24 +0000
 Subject: [PATCH 2/5] Add cpu options
 
 ---
- configs/common/Options.py | 77 +++++++++++++++++++++++++++++++++++++++
- 1 file changed, 77 insertions(+)
+ configs/common/Options.py      | 77 +++++++++++++++++++++++++++++++++++++++
+ configs/common/Simulation.py   | 33 +++++++++++++++++++++++++++++++++
+
+ 2 file changed, 110 insertions(+)
 
 diff --git a/configs/common/Options.py b/configs/common/Options.py
 index 0a978aea24..4a25d9c8c4 100644
@@ -94,7 +96,51 @@ index 0a978aea24..4a25d9c8c4 100644
 +
  
  # Add common options that assume a non-NULL ISA.
- 
+
+diff --git a/configs/common/Simulation.py b/configs/common/Simulation.py
+index 4377b65e64..6b9f4b5866 100644
+--- a/configs/common/Simulation.py
++++ b/configs/common/Simulation.py
+@@ -82,6 +82,39 @@ def setCPUClass(options):
+         TmpClass = AtomicSimpleCPU
+         test_mem_mode = "atomic"
+
++    if options.fetchWidth:
++        TmpClass.fetchWidth = options.fetchWidth
++
++    if options.decodeWidth:
++        TmpClass.decodeWidth = options.decodeWidth
++
++    if options.renameWidth:
++        TmpClass.renameWidth = options.renameWidth
++
++    if options.dispatchWidth:
++        TmpClass.dispatchWidth = options.dispatchWidth
++
++    if options.issueWidth:
++        TmpClass.issueWidth = options.issueWidth
++
++    if options.wbWidth:
++        TmpClass.wbWidth = options.wbWidth
++
++    if options.commitWidth:
++        TmpClass.commitWidth = options.commitWidth
++
++    if options.squashWidth:
++        TmpClass.squashWidth = options.squashWidth
++
++    if options.LQEntries:
++        TmpClass.LQEntries = options.LQEntries
++
++    if options.SQEntries:
++        TmpClass.SQEntries = options.SQEntries
++
++    if options.IQEntries:
++        TmpClass.numIQEntries = options.IQEntries
++
+     # Ruby only supports atomic accesses in noncaching mode
+     if test_mem_mode == "atomic" and options.ruby:
+         warn("Memory mode will be changed to atomic_noncaching")
 -- 
 2.34.1
 
