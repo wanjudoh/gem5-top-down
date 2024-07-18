@@ -92,7 +92,7 @@ $ python3 ./gem5_microbenchmark.py -f micro_config.cfg -o <OUTDIR> -b load_rando
 ```
 
 ## Top-down analysis
-* gem5_script 디렉토리 아래에 top-level 분석을 수행해주는 python 스크립트가 포함되어있습니다.
+* gem5_script 디렉토리 아래에 top-down 분석을 수행해주는 python 스크립트가 포함되어있습니다.
 * python 스크립트에서는 인자로 넣어주는 디렉토리 경로에 위치한 config 파일과 result 파일을 parsing하여 top-down 분석 결과를 출력해줍니다.
 ```
 $ cd gem5_script
